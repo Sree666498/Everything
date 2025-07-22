@@ -79,13 +79,8 @@ class LocalHangmanTester:
         # Create mock API instance
         mock_api = MockAPI(self.dictionary_file)
         
-        # Copy all the guess methods from HangmanAPI
+        # Copy the guess method from HangmanAPI
         mock_api.guess = HangmanAPI.guess.__get__(mock_api, MockAPI)
-        mock_api._guess_from_few_candidates = HangmanAPI._guess_from_few_candidates.__get__(mock_api, MockAPI)
-        mock_api._position_aware_guess = HangmanAPI._position_aware_guess.__get__(mock_api, MockAPI)
-        mock_api._pattern_based_guess = HangmanAPI._pattern_based_guess.__get__(mock_api, MockAPI)
-        mock_api._vowel_consonant_strategy = HangmanAPI._vowel_consonant_strategy.__get__(mock_api, MockAPI)
-        mock_api._fallback_guess = HangmanAPI._fallback_guess.__get__(mock_api, MockAPI)
         
         # Initialize game state
         mock_api.guessed_letters = []

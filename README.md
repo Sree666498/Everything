@@ -115,11 +115,13 @@ for i in range(1000):
 - **Per Guess**: O(k) where k=current candidate count (typically << n)
 - **Memory**: O(n*m) for pre-computed data structures
 
-### Key Functions
-- `_position_aware_guess()`: Position-specific frequency analysis
-- `_pattern_based_guess()`: Bigram pattern matching
-- `_vowel_consonant_strategy()`: Smart vowel/consonant balancing
-- `_guess_from_few_candidates()`: Optimization for small candidate sets
+### Key Function
+- `guess()`: Single comprehensive function containing all strategies:
+  - Position-specific frequency analysis
+  - Bigram pattern matching
+  - Smart vowel/consonant balancing
+  - Few candidates optimization
+  - Enhanced frequency analysis with fallbacks
 
 ## Files Included
 
