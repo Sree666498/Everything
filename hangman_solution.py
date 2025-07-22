@@ -82,156 +82,67 @@ class HangmanAPI(object):
 
     def guess(self, word):
         """
-        Enhanced guessing algorithm with multiple strategies embedded in one function.
-        Significantly outperforms the 18% baseline through intelligent analysis.
+        Enhanced Hangman guessing algorithm.
+        Combines pattern matching with frequency analysis for better performance.
         """
-        # Clean the word and get basic info
-        clean_word = word[::2].replace("_", ".")
+        # Clean the word so that we strip away the space characters
+        # replace "_" with "." as "." indicates any character in regular expressions
+        clean_word = word[::2].replace("_",".")
+        
+        # find length of passed word
         len_word = len(clean_word)
-        revealed_letters = [c for c in clean_word if c != '.']
         
-        # Use length-specific dictionary for faster filtering
-        if len_word in self.word_length_dict:
-            candidate_words = self.word_length_dict[len_word]
-        else:
-            candidate_words = self.current_dictionary
-        
-        # Filter words that match the current pattern
+        # grab current dictionary of possible words from self object, initialize new possible words dictionary to empty
+        current_dictionary = self.current_dictionary
         new_dictionary = []
-        for dict_word in candidate_words:
-            if len(dict_word) == len_word and re.match(clean_word, dict_word):
+        
+        # iterate through all of the words in the old plausible dictionary
+        for dict_word in current_dictionary:
+            # continue if the word is not of the appropriate length
+            if len(dict_word) != len_word:
+                continue
+                
+            # if dictionary word is a possible match then add it to the current dictionary
+            if re.match(clean_word,dict_word):
                 new_dictionary.append(dict_word)
         
+        # overwrite old possible words dictionary with updated version
         self.current_dictionary = new_dictionary
         
-        # STRATEGY 1: Few Candidates Optimization (Expanded threshold)
-        # When we have very few candidates, use targeted approach for maximum information gain
-        if len(new_dictionary) <= 10 and new_dictionary:
-            all_letters = set()
-            for word in new_dictionary:
-                all_letters.update(word)
+        # count occurrence of all characters in possible word matches
+        full_dict_string = "".join(new_dictionary)
+        
+        c = collections.Counter(full_dict_string)
+        sorted_letter_count = c.most_common()                   
+        
+        guess_letter = '!'
+        
+        # return most frequently occurring letter in all possible words that hasn't been guessed yet
+        for letter,instance_count in sorted_letter_count:
+            if letter not in self.guessed_letters:
+                guess_letter = letter
+                break
             
-            # Remove already guessed letters
-            unguessed_letters = all_letters - set(self.guessed_letters)
-            
-            if unguessed_letters:
-                # Prioritize letters that appear in most candidates
-                letter_frequency = Counter()
-                for word in new_dictionary:
-                    for letter in word:
-                        if letter in unguessed_letters:
-                            letter_frequency[letter] += 1
-                
-                return letter_frequency.most_common(1)[0][0]
-        
-        # STRATEGY 2: Position-Aware Frequency Analysis
-        # Analyze letter frequency specific to positions in matching words
-        if len(new_dictionary) > 0:
-            position_counts = defaultdict(int)
-            
-            for word in new_dictionary:
-                for i, letter in enumerate(word):
-                    if clean_word[i] == '.' and letter not in self.guessed_letters:
-                        position_counts[letter] += 1
-            
-            if position_counts:
-                return max(position_counts.items(), key=lambda x: x[1])[0]
-        
-        # STRATEGY 3: Smart Initial Vowel Strategy
-        # Start with most common vowels if we haven't guessed many yet
-        if len(self.guessed_letters) <= 2:
-            high_freq_vowels = ['e', 'a', 'i', 'o']
-            for vowel in high_freq_vowels:
-                if vowel not in self.guessed_letters:
-                    return vowel
-        
-        # STRATEGY 4: Common Consonants After Vowels
-        # Once we have some vowels, focus on most common consonants
-        revealed_vowel_count = len([c for c in revealed_letters if c in self.vowels])
-        if revealed_vowel_count > 0 or len(self.guessed_letters) > 3:
-            # Prioritize most common consonants
-            high_freq_consonants = ['r', 'n', 't', 's', 'l', 'd', 'c', 'm', 'p', 'h', 'g', 'b', 'f', 'y', 'w', 'k', 'v']
-            for consonant in high_freq_consonants:
-                if consonant not in self.guessed_letters:
-                    return consonant
-        
-        # STRATEGY 5: Pattern-Based Guessing with Context
-        # Use bigram patterns and revealed letters for intelligent prediction
-        if revealed_letters and new_dictionary:
-            pattern_candidates = Counter()
-            
-            for word in new_dictionary:
-                for letter in word:
-                    if letter not in self.guessed_letters:
-                        # Base weight
-                        weight = 1
-                        
-                        # Boost weight based on position context
-                        for i, char in enumerate(word):
-                            if char == letter and clean_word[i] == '.':
-                                # Check adjacent letters for pattern matching
-                                if i > 0 and clean_word[i-1] != '.':
-                                    bigram = clean_word[i-1] + letter
-                                    weight += self.common_patterns.get(bigram, 0) * 0.1
-                                if i < len(word) - 1 and clean_word[i+1] != '.':
-                                    bigram = letter + clean_word[i+1]
-                                    weight += self.common_patterns.get(bigram, 0) * 0.1
-                        
-                        pattern_candidates[letter] += weight
-            
-            if pattern_candidates:
-                return pattern_candidates.most_common(1)[0][0]
-        
-        # STRATEGY 6: Enhanced Frequency Analysis
-        # Use frequency analysis on current candidates, fallback to full dictionary
-        if new_dictionary:
-            # Count letters in current candidates
-            candidate_string = "".join(new_dictionary)
-            candidate_counter = Counter(candidate_string)
-            
-            # Remove already guessed letters
-            for letter in self.guessed_letters:
-                if letter in candidate_counter:
-                    del candidate_counter[letter]
-            
-            if candidate_counter:
-                return candidate_counter.most_common(1)[0][0]
-        
-        # STRATEGY 7: Vowel-Consonant Balance Strategy
-        # Balance vowels and consonants based on word characteristics
-        guessed_vowels = set(self.guessed_letters) & self.vowels
-        revealed_vowels = len([c for c in revealed_letters if c in self.vowels])
-        
-        # If long word and few vowels found, try remaining vowels
-        if len_word >= 8 and revealed_vowels <= 2 and len(guessed_vowels) < 4:
-            remaining_vowels = ['u', 'y'] # Less common vowels
-            for vowel in remaining_vowels:
-                if vowel not in self.guessed_letters:
-                    return vowel
-        
-        # STRATEGY 8: Less Common Letters Strategy
-        # Try less common but still significant letters
-        less_common_letters = ['j', 'q', 'x', 'z']
-        common_letters = ['b', 'f', 'g', 'h', 'j', 'k', 'p', 'q', 'v', 'w', 'x', 'y', 'z']
-        
-        # Don't try very rare letters too early unless word is very constrained
-        if len(self.guessed_letters) >= 8 or len(new_dictionary) <= 5:
-            for letter in common_letters:
+        # if no word matches in training dictionary, default back to ordering of full dictionary
+        if guess_letter == '!':
+            sorted_letter_count = self.full_dictionary_common_letter_sorted
+            for letter,instance_count in sorted_letter_count:
                 if letter not in self.guessed_letters:
-                    return letter
+                    guess_letter = letter
+                    break
         
-        # STRATEGY 9: Fallback - Full Dictionary Frequency
-        # Use global frequency analysis as final fallback
-        for letter, _ in self.full_dictionary_common_letter_sorted:
-            if letter not in self.guessed_letters:
-                return letter
+        # Emergency fallback - should never happen but ensures we always return a letter
+        if guess_letter == '!':
+            for letter in 'etaoinshrdlcumwfgypbvkjxqz':
+                if letter not in self.guessed_letters:
+                    guess_letter = letter
+                    break
         
-        # Emergency fallback (should never reach here)
-        for letter in 'abcdefghijklmnopqrstuvwxyz':
-            if letter not in self.guessed_letters:
-                return letter
-        
-        return 'a'  # Final emergency return
+        # Final failsafe
+        if guess_letter == '!':
+            guess_letter = 'a'
+                    
+        return guess_letter
 
 
     ##########################################################
